@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-sql-driver/mysql"
@@ -52,18 +53,20 @@ func getAlbums(c *gin.Context) {
 //	albums = append(albums, newAlbum)
 //	c.IndentedJSON(http.StatusCreated, newAlbum)
 //}
-//
-//func getAlbumByID(c *gin.Context) {
-//	id := c.Param("id")
-//
-//	for _, a := range albums {
-//		if a.ID == id {
-//			c.IndentedJSON(http.StatusOK, a)
-//			return
-//		}
-//	}
-//	c.IndentedJSON(http.StatusNotFound, gin.H{"message": "album not found"})
-//}
+
+func getAlbumByID(c *gin.Context) {
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+
+	var alb album
+
+	row := db.QueryRow("SELECT * FROM album WHERE id = ?", id)
+	if err := row.Scan(&alb.ID, &alb.Title, &alb.Artist, &alb.Price); err != nil {
+		log.Printf("albumsById %d: %v", id, err)
+		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "album not found"})
+		return
+	}
+	c.IndentedJSON(http.StatusOK, alb)
+}
 
 var db *sql.DB
 
@@ -90,7 +93,7 @@ func main() {
 
 	router := gin.Default()
 	router.GET("/albums", getAlbums)
-	//router.GET("/albums/:id", getAlbumByID)
+	router.GET("/albums/:id", getAlbumByID)
 	//router.POST("/albums", postAlbums)
 	err = router.Run("localhost:8080")
 	if err != nil {
