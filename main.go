@@ -18,12 +18,6 @@ type album struct {
 	Price  float64 `json:"price"`
 }
 
-//var albums = []album{
-//	{ID: "1", Title: "Blue Train", Artist: "John Coltrane", Price: 56.99},
-//	{ID: "2", Title: "Jeru", Artist: "Gerry Mulligan", Price: 17.99},
-//	{ID: "3", Title: "Sarah Vaughan and Clifford Brown", Artist: "Sarah Vaughan", Price: 39.99},
-//}
-
 func getAlbums(c *gin.Context) {
 	var albums []album
 	rows, err := db.Query("SELECT * FROM album")
@@ -44,15 +38,25 @@ func getAlbums(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, albums)
 }
 
-//func postAlbums(c *gin.Context) {
-//	var newAlbum album
-//
-//	if err := c.BindJSON(&newAlbum); err != nil {
-//		return
-//	}
-//	albums = append(albums, newAlbum)
-//	c.IndentedJSON(http.StatusCreated, newAlbum)
-//}
+func postAlbums(c *gin.Context) {
+	var alb album
+	if err := c.BindJSON(&alb); err != nil {
+		fmt.Errorf(err.Error())
+		return
+	}
+
+	result, err := db.Exec("INSERT INTO album (title, artist, price) VALUES (?,?,?)", alb.Title, alb.Artist, alb.Price)
+	if err != nil {
+		fmt.Errorf(err.Error())
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		fmt.Errorf(err.Error())
+	}
+	alb.ID = strconv.FormatInt(id, 10)
+
+	c.IndentedJSON(http.StatusCreated, alb)
+}
 
 func getAlbumByID(c *gin.Context) {
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
@@ -61,7 +65,7 @@ func getAlbumByID(c *gin.Context) {
 
 	row := db.QueryRow("SELECT * FROM album WHERE id = ?", id)
 	if err := row.Scan(&alb.ID, &alb.Title, &alb.Artist, &alb.Price); err != nil {
-		log.Printf("albumsById %d: %v", id, err)
+		fmt.Errorf(err.Error())
 		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "album not found"})
 		return
 	}
@@ -94,7 +98,7 @@ func main() {
 	router := gin.Default()
 	router.GET("/albums", getAlbums)
 	router.GET("/albums/:id", getAlbumByID)
-	//router.POST("/albums", postAlbums)
+	router.POST("/albums", postAlbums)
 	err = router.Run("localhost:8080")
 	if err != nil {
 		log.Fatalln(err.Error())
